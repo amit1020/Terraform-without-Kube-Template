@@ -1,0 +1,48 @@
+    #!/bin/bash
+    set -ex  # Enable debugging
+
+    # Update system and install required packages
+    sudo yum update -y
+    sudo yum install -y git
+
+    # Install Docker
+    sudo amazon-linux-extras enable docker
+    sudo yum install -y docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker ec2-user
+
+    # Define variables inside the script
+    DOCKER_COMPOSE_VERSION="v2.27.0"
+
+    # Detect architecture
+    ARCH=\$(uname -m)
+    if [[ "\$ARCH" == "x86_64" ]]; then
+      ARCH="x86_64"
+    elif [[ "\$ARCH" == "aarch64" ]]; then
+      ARCH="aarch64"
+    else
+      echo "Unsupported architecture: \$ARCH"
+      exit 1
+    fi
+
+    # Install Docker Compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/\$$DOCKER_COMPOSE_VERSION}/docker-compose-linux-\$$ARCH" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+
+    # Verify installation
+    docker-compose version
+
+    # Git clone the repository (ensure correct ownership)
+    sudo -u ec2-user git clone https://github.com/amit1020/PhishingScanPlatform.git /home/ec2-user/phishing-scan-platform
+    cd /home/ec2-user/phishing-scan-platform
+
+    # Start Docker Compose
+    sudo -u ec2-user docker-compose up -d
+
+    # Log completion
+    echo "User data script completed successfully!" | sudo tee /var/log/user_data_success.log
+
+    # Delay reboot to ensure setup is stable
+    (sleep 30 && sudo reboot) &
+    EOF
